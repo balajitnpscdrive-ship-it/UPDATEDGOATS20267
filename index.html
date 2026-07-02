@@ -426,6 +426,15 @@
           </div>
           <select id="man-house" style="flex:1; margin:0;"><option selected disabled>House</option></select>
         </div>
+        
+        <!-- STUDENT HISTORY CARD (NEW) -->
+        <div id="student-history-card" style="display:none; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:15px; margin-bottom:14px; text-align:left;">
+          <div style="font-size:10px; font-weight:900; color:#888; letter-spacing:2px; margin-bottom:10px; text-transform:uppercase;">📊 STUDENT POINTS HISTORY</div>
+          <div id="history-student-details" style="font-size:13px; font-weight:900; color:#fff; margin-bottom:6px;"></div>
+          <div id="history-student-score" style="font-size:24px; font-weight:900; color:var(--neon); margin-bottom:10px;">0 PTS</div>
+          <div id="history-logs-container" style="max-height:150px; overflow-y:auto; font-size:11px; color:#aaa; border-top:1px solid rgba(255,255,255,0.05); padding-top:8px;"></div>
+        </div>
+
         <button class="btn-sub" id="btn-submit-action" onclick="handleSubmitAction()">✓ SUBMIT POINT</button>
       </div>
 
@@ -526,6 +535,8 @@
     let currentRole = ''; // 'Admin', 'Department', or 'Common'
     let scannedStudentDept = null;
     let categoryPointsList = [];
+    let lastSubmissionTime = 0;
+    let lastSubmissionHash = "";
     let pointSettings = {
       team: { '1st': 20, '2nd': 15, '3rd': 10, 'plus': 10, 'minus': -5 },
       indiv: { '1st': 15, '2nd': 10, '3rd': 5, 'plus': 5, 'minus': -2 }
@@ -603,7 +614,13 @@
             const val = e.target.value.toLowerCase().trim(); ac.innerHTML = '';
             // Auto-select if full name matches exactly
             const exactMatch = res.students.find(s => s.name.toLowerCase().trim() === val);
-            if (exactMatch) { setHouse(exactMatch.house); scannedStudentDept = exactMatch.dept; }
+            if (exactMatch) {
+              setHouse(exactMatch.house);
+              scannedStudentDept = exactMatch.dept;
+              loadStudentHistory(exactMatch.name);
+            } else {
+              document.getElementById('student-history-card').style.display = 'none';
+            }
 
             if (val.length >= 3) {
               const deptFilter = (currentRole === 'Admin' || currentRole === 'Common') ? null : currentDept;
@@ -614,11 +631,20 @@
                   const div = document.createElement('div');
                   div.style.padding = '10px 14px'; div.style.cursor = 'pointer'; div.style.borderBottom = '1px solid rgba(255,255,255,0.05)'; div.style.color = '#fff'; div.style.fontSize = '14px';
                   div.innerHTML = `<span style="font-weight:900;">${s.name}</span> <span style="color:#aaa;font-size:10px;margin-left:6px;">(${s.house})</span>`;
-                  div.onclick = () => { inp.value = s.name; setHouse(s.house); scannedStudentDept = s.dept; ac.style.display = 'none'; };
+                  div.onclick = () => {
+                    inp.value = s.name;
+                    setHouse(s.house);
+                    scannedStudentDept = s.dept;
+                    ac.style.display = 'none';
+                    loadStudentHistory(s.name);
+                  };
                   ac.appendChild(div);
                 });
               } else { ac.style.display = 'none'; }
-            } else { ac.style.display = 'none'; }
+            } else {
+              ac.style.display = 'none';
+              document.getElementById('student-history-card').style.display = 'none';
+            }
           });
           document.addEventListener('click', (e) => { if (e.target !== inp && !ac.contains(e.target)) ac.style.display = 'none'; });
         }
@@ -647,6 +673,7 @@
         document.getElementById('cam-area').style.display = 'none';
         document.getElementById('manual-area').style.display = 'none';
         document.getElementById('teacher-meta').style.display = 'flex';
+        document.getElementById('student-history-card').style.display = 'none';
         if (scanActive) stopCam();
       } else {
         document.getElementById('team-mode-sections').style.display = 'none';
@@ -654,6 +681,9 @@
         document.getElementById('cam-area').style.display = 'block';
         document.getElementById('manual-area').style.display = 'block';
         document.getElementById('teacher-meta').style.display = 'none';
+        document.getElementById('student-history-card').style.display = 'none';
+        document.getElementById('man-name').value = '';
+        document.getElementById('man-house').selectedIndex = 0;
         document.getElementById('btn-submit-action').innerText = '✓ SUBMIT POINT';
       }
     }
@@ -785,6 +815,18 @@
       }
       
       const remarks = document.getElementById('remarks-input').value.trim();
+
+      // Duplicate Point Safeguard
+      const submissionHash = `${sName || ''}_${actualH}_${cat}_${pts}_${remarks}`;
+      const nowTime = Date.now();
+      if (submissionHash === lastSubmissionHash && (nowTime - lastSubmissionTime) < 4000) {
+        showToast("⚠️ Duplicate point blocked!");
+        if (scanActive) stopCam();
+        return;
+      }
+      lastSubmissionHash = submissionHash;
+      lastSubmissionTime = nowTime;
+
       scores[actualH] += pts; document.getElementById('s-' + actualH).innerText = scores[actualH]; updateRanks();
       if (navigator.vibrate) { try { navigator.vibrate(pts > 0 ? [60, 60, 60] : [250]); } catch (e) {} }
       if (pts > 0) { confetti({ particleCount: tier === '1st' ? 120 : tier === '2nd' ? 80 : 40, spread: 70, origin: { y: 0.6 } }); playBeep('success'); } else { playBeep('fail'); }
@@ -799,7 +841,7 @@
       document.getElementById('pop-pts').style.color = pts > 0 ? "var(--neon)" : "var(--red)";
       document.getElementById('pop-house').innerText = actualH; document.getElementById('pop-house').style.background = houseColors[actualH] || "#fff";
       document.getElementById('pop-remarks').innerText = remarks ? `"${remarks}"` : '';
-      pop.classList.remove('show'); void pop.offsetWidth; pop.classList.add('show'); setTimeout(() => pop.classList.remove('show'), 3500);
+      pop.classList.remove('show'); void pop.offsetWidth; pop.classList.add('show'); setTimeout(() => pop.classList.remove('show'), 5000);
       
       const payload = {
         mode: currentMode === 'indiv' ? 'individual' : 'team',
@@ -816,20 +858,45 @@
       };
       
       document.getElementById('remarks-input').value = '';
+      document.getElementById('student-history-card').style.display = 'none';
       if (pendingPayload) { if (undoTimeout) clearTimeout(undoTimeout); executePendingPoint(); }
-      pendingPayload = payload; const sb = document.getElementById('undo-snackbar'); sb.style.display = 'flex'; undoTimeout = setTimeout(() => { executePendingPoint(); }, 10000);
+      pendingPayload = payload; const sb = document.getElementById('undo-snackbar'); sb.style.display = 'flex'; undoTimeout = setTimeout(() => { executePendingPoint(); }, 5000);
     }
     
     async function executePendingPoint() {
       if (!pendingPayload) return; const p = pendingPayload; pendingPayload = null; document.getElementById('undo-snackbar').style.display = 'none';
-      try { if (!navigator.onLine) throw new Error("Offline"); const res = await api({ action: "submitPoint", data: p }); if (!res || !res.success) throw new Error(); }
-      catch (e) { const q = JSON.parse(localStorage.getItem('goats_queue') || '[]'); q.push(p); localStorage.setItem('goats_queue', JSON.stringify(q)); }
+      try {
+        if (!navigator.onLine) throw new Error("Offline");
+        const res = await api({ action: "submitPoint", data: p });
+        if (!res || !res.success) throw new Error();
+        const activeName = document.getElementById('man-name').value.trim();
+        if (activeName && activeName.toLowerCase() === p.studentName.toLowerCase()) {
+          loadStudentHistory(p.studentName);
+        }
+      }
+      catch (e) {
+        const q = JSON.parse(localStorage.getItem('goats_queue') || '[]');
+        q.push(p);
+        localStorage.setItem('goats_queue', JSON.stringify(q));
+      }
     }
     
     function undoPoint() {
       if (undoTimeout) { clearTimeout(undoTimeout); undoTimeout = null; }
-      if (pendingPayload) { const h = pendingPayload.house; scores[h] -= pendingPayload.points; document.getElementById('s-' + h).innerText = scores[h]; updateRanks(); showToast("↩️ Point assignment canceled!"); }
-      pendingPayload = null; document.getElementById('undo-snackbar').style.display = 'none';
+      if (pendingPayload) {
+        const h = pendingPayload.house;
+        scores[h] -= pendingPayload.points;
+        document.getElementById('s-' + h).innerText = scores[h];
+        updateRanks();
+        showToast("↩️ Point assignment canceled!");
+        document.getElementById('paper-popup').classList.remove('show');
+        const activeName = document.getElementById('man-name').value.trim();
+        if (activeName && activeName.toLowerCase() === pendingPayload.studentName.toLowerCase()) {
+          loadStudentHistory(pendingPayload.studentName);
+        }
+      }
+      pendingPayload = null;
+      document.getElementById('undo-snackbar').style.display = 'none';
     }
     
     async function toggleCam() {
@@ -845,6 +912,7 @@
               scannedStudentDept = p[1];
               stopCam();
               showToast("🎯 Selected: " + p[0]);
+              loadStudentHistory(p[0]);
             } else {
               record(p[2], p[0], p[1]);
               stopCam();
@@ -888,6 +956,7 @@
       isAdmin = false;
       currentDept = "";
       currentRole = "";
+      document.getElementById('student-history-card').style.display = 'none';
       if (scanActive) stopCam();
       if (localStorage.getItem('goats_cache')) render(JSON.parse(localStorage.getItem('goats_cache')));
     }
@@ -1419,6 +1488,55 @@
       if (display) display.innerText = `POINTS: ${pts > 0 ? '+' : ''}${pts}`;
     }
 
+    async function loadStudentHistory(studentName) {
+      const tSel = document.getElementById('t-name');
+      if (!tSel.value) {
+        showToast("⚠️ Select your name first!");
+        document.getElementById('man-name').value = "";
+        document.getElementById('man-house').selectedIndex = 0;
+        document.getElementById('student-history-card').style.display = 'none';
+        if (scanActive) stopCam();
+        return;
+      }
+      const card = document.getElementById('student-history-card');
+      const details = document.getElementById('history-student-details');
+      const score = document.getElementById('history-student-score');
+      const logsCont = document.getElementById('history-logs-container');
+      
+      details.innerText = `Loading history for ${studentName}...`;
+      score.innerText = "...";
+      logsCont.innerHTML = "";
+      card.style.display = 'block';
+      
+      try {
+        const res = await api({ action: "getStudentStatement", studentName: studentName });
+        if (res.success) {
+          details.innerText = `${res.studentProfile.name} (${res.studentProfile.dept} - ${res.studentProfile.house})`;
+          score.innerText = `${res.totalPoints} PTS`;
+          if (res.logs && res.logs.length) {
+            logsCont.innerHTML = res.logs.map(l => `
+              <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <span style="font-weight:900; color:#fff;">${l.cat}</span>
+                  <span style="color:#666; margin-left:5px;">${new Date(l.date).toLocaleDateString()}</span>
+                  ${l.remarks ? `<br><span style="color:#888; font-style:italic;">"${l.remarks}"</span>` : ''}
+                </div>
+                <div style="font-weight:900; color:${l.pts > 0 ? 'var(--neon)' : 'var(--red)'};">
+                  ${l.pts > 0 ? '+' : ''}${l.pts}
+                </div>
+              </div>
+            `).join('');
+          } else {
+            logsCont.innerHTML = '<div style="color:#555; font-style:italic;">No points log found.</div>';
+          }
+        } else {
+          card.style.display = 'none';
+        }
+      } catch (e) {
+        card.style.display = 'none';
+      }
+    }
+
     function setHouse(houseName) {
       if (!houseName) return;
       const hs = document.getElementById('man-house');
@@ -1431,3 +1549,4 @@
   </script>
 </body>
 </html>
+a
