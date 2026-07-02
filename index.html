@@ -906,17 +906,8 @@
         await html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 240 }, (t) => {
           const p = t.split('|').map(x => x.trim());
           if (p.length >= 3) {
-            if (currentMode === 'indiv') {
-              document.getElementById('man-name').value = p[0];
-              setHouse(p[2]);
-              scannedStudentDept = p[1];
-              stopCam();
-              showToast("🎯 Selected: " + p[0]);
-              loadStudentHistory(p[0]);
-            } else {
-              record(p[2], p[0], p[1]);
-              stopCam();
-            }
+            record(p[2], p[0], p[1]);
+            stopCam();
           }
         });
         scanActive = true;
@@ -1549,4 +1540,3 @@
   </script>
 </body>
 </html>
-a
