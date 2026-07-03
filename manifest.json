@@ -1,4 +1,5 @@
 {
+  "id": "/UPDATEDGOATS20267/student_portal.html",
   "name": "DB G.O.A.T.S Portal",
   "short_name": "G.O.A.T.S",
   "description": "Don Bosco G.O.A.T.S Championship Portal",
@@ -22,6 +23,20 @@
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-mobile.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "screenshot-desktop.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }
